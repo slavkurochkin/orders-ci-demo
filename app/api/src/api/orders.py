@@ -21,7 +21,8 @@ class LineItem:
 
 def subtotal(items: list[LineItem]) -> float:
     """Sum of quantity * unit price, before discounts or shipping."""
-    return round(sum(item.quantity * item.unit_price for item in items), 2)
+    prices = [item.unit_price for item in items]
+    return round(sum(prices), 2)
 
 
 def discount(items: list[LineItem]) -> float:

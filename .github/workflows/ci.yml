@@ -27,6 +27,9 @@ jobs:
             worker:
               - 'app/worker/**'
               - '.github/workflows/ci.yml'
+            shared:
+              - 'config/**'
+              - 'pyproject.toml'
 
   api:
     name: api
