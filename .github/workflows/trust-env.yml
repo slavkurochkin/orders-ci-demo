@@ -29,3 +29,82 @@ jobs:
           echo "$claims" | jq .
           echo "--- lifetime ---"
           echo "$claims" | jq -r '"exp - iat = \(.exp - .iat) seconds"'
+
+  aws-with-environment:
+    name: aws login (environment production)
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Print this job's OIDC claims (payload only)
+        run: |
+          set -euo pipefail
+          jwt=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "::add-mask::$jwt"
+          payload=$(printf '%s' "$jwt" | cut -d. -f2 | tr '_-' '/+')
+          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="$payload="; done
+          printf '%s' "$payload" | base64 -d | jq '{sub, aud, environment, ref, event_name, run_attempt}'
+          unset jwt payload
+
+      - name: Assume the production role
+        id: creds
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          mask-aws-account-id: true
+
+      - name: Who am I
+        env:
+          EXPIRES: ${{ steps.creds.outputs.aws-expiration }}
+        run: |
+          set -euo pipefail
+          arn=$(aws sts get-caller-identity --query Arn --output text)
+          echo "Arn: $(echo "$arn" | sed -E 's/[0-9]{12}/<acct>/g')"
+          echo "Credentials expire: ${EXPIRES:-<not reported>}"
+          case "$arn" in
+            *:assumed-role/*) echo "OK: short-lived session, no stored key" ;;
+            *) echo "::error::expected an assumed-role ARN"; exit 1 ;;
+          esac
+
+  aws-without-environment:
+    name: aws login (no environment)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Print this job's OIDC claims (payload only)
+        run: |
+          set -euo pipefail
+          jwt=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "::add-mask::$jwt"
+          payload=$(printf '%s' "$jwt" | cut -d. -f2 | tr '_-' '/+')
+          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="$payload="; done
+          printf '%s' "$payload" | base64 -d | jq '{sub, aud, environment, ref, event_name, run_attempt}'
+          unset jwt payload
+
+      - name: Assume the production role
+        id: creds
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          mask-aws-account-id: true
+
+      - name: Who am I
+        env:
+          EXPIRES: ${{ steps.creds.outputs.aws-expiration }}
+        run: |
+          set -euo pipefail
+          arn=$(aws sts get-caller-identity --query Arn --output text)
+          echo "Arn: $(echo "$arn" | sed -E 's/[0-9]{12}/<acct>/g')"
+          echo "Credentials expire: ${EXPIRES:-<not reported>}"
+          case "$arn" in
+            *:assumed-role/*) echo "OK: short-lived session, no stored key" ;;
+            *) echo "::error::expected an assumed-role ARN"; exit 1 ;;
+          esac
