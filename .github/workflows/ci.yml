@@ -7,6 +7,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# PROBE: a key that does not vary by ref. Every branch shares one group, "CI".
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   changes:
     name: changes
