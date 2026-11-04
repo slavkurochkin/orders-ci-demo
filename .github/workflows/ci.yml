@@ -82,6 +82,12 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Cache npm downloads (keyed on the commit)
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: npm-${{ github.sha }}
+
       - name: Install dependencies
         working-directory: app/worker
         run: npm ci
