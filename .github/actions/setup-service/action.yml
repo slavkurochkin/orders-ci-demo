@@ -32,7 +32,7 @@ runs:
 
     # Uniform, because every service exposes the same `install` target.
     - name: Install dependencies
-      if: inputs.install
+      if: inputs.install == 'true'
       shell: bash
       working-directory: app/${{ inputs.service }}
       run: |
