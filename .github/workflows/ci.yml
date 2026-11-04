@@ -36,11 +36,12 @@ jobs:
   api:
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.api == 'true'
-    runs-on: ubuntu-latest
     uses: ./.github/workflows/reusable-service-ci.yml
     with:
       service: api
       versions: '["3.11", "3.12", "3.13"]'
+    steps:
+      - run: echo "one more step"
 
   worker:
     needs: changes
