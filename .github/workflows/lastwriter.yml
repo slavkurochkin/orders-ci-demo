@@ -1,0 +1,29 @@
+# Probe: a matrixed job writes matrix.version into a job output. Who wins?
+name: Last writer probe
+
+on:
+  push:
+    branches: ['probe-reuse-lastwriter']
+
+jobs:
+  write:
+    name: write (${{ matrix.version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        version: ["3.11", "3.12", "3.13"]
+    outputs:
+      version: ${{ steps.w.outputs.version }}
+    steps:
+      - id: w
+        run: |
+          echo "version=${{ matrix.version }}" >> "$GITHUB_OUTPUT"
+          echo "leg ${{ matrix.version }} wrote its output at $(date -u +%H:%M:%S.%N)"
+
+  read:
+    needs: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo "needs.write.outputs.version = ${{ needs.write.outputs.version }}"
