@@ -88,3 +88,13 @@ jobs:
       - name: Run tests
         working-directory: app/worker
         run: npm test
+
+  ci-passed:
+    name: ci-passed
+    needs: [changes, api, worker]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report the results
+        run: echo "changes=${{ needs.changes.result }} api=${{ needs.api.result }} worker=${{ needs.worker.result }}"
