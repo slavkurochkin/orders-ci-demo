@@ -48,27 +48,22 @@ jobs:
         working-directory: app/api
         run: make install
 
-      # GET / answers HTTP 400 (MissingAuthenticationToken) even when DynamoDB
-      # Local is up, so `curl -f` would never succeed. Any HTTP answer = ready.
-      - name: Wait for DynamoDB Local
+      - name: Run integration tests
+        working-directory: app/api
+        env:
+          DYNAMODB_ENDPOINT: http://localhost:8000
+          AWS_REGION: us-east-1
         run: |
-          for i in $(seq 1 30); do
-            if curl -s -o /dev/null http://localhost:8000; then
-              echo "ready after ${i} attempt(s)"
-              exit 0
-            fi
-            sleep 1
-          done
-          curl -sS -o /dev/null http://localhost:8000 || true
-          echo "::error::DynamoDB Local never became reachable on localhost:8000"
-          exit 1
+          echo "tests start: $(date -u +%Y-%m-%dT%H:%M:%S.%NZ)"
+          uv run pytest -m integration -rA
 
       - name: Race margin (probe instrumentation)
+        if: always()
         env:
           CID: ${{ job.services.dynamodb.id }}
         run: |
           echo "service container started: $(docker inspect -f '{{.State.StartedAt}}' "$CID")"
-          echo "now (tests about to start): $(date -u +%Y-%m-%dT%H:%M:%S.%NZ)"
+          echo "now (after tests): $(date -u +%Y-%m-%dT%H:%M:%S.%NZ)"
           echo "image: $(docker inspect -f '{{.Config.Image}}' "$CID") arch: $(docker image inspect -f '{{.Architecture}}' "$(docker inspect -f '{{.Image}}' "$CID")")"
           echo "health: $(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}no healthcheck{{end}}' "$CID")"
           for tool in curl wget bash sh; do
@@ -76,9 +71,3 @@ jobs:
           done
           echo "HTTP GET / -> $(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000 || true)"
 
-      - name: Run integration tests
-        working-directory: app/api
-        env:
-          DYNAMODB_ENDPOINT: http://localhost:8000
-          AWS_REGION: us-east-1
-        run: uv run pytest -m integration -rA
