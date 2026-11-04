@@ -14,11 +14,11 @@ jobs:
       matrix:
         include:
           - version: "3.11"
-            delay: 0
+            delay: 20
           - version: "3.12"
             delay: 10
           - version: "3.13"
-            delay: 20
+            delay: 0
     outputs:
       version: ${{ steps.w.outputs.version }}
     steps:
