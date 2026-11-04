@@ -1,0 +1,32 @@
+# Probe: what does a composite action do with install: false?
+name: Flag probe
+
+on:
+  push:
+    branches: ['probe-reuse-truthy']
+  workflow_dispatch:
+
+jobs:
+  quoted:
+    name: install 'false' (quoted string)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-service
+        with:
+          service: api
+          version: '3.12'
+          install: 'false'
+
+  bare:
+    name: install false (bare YAML boolean)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-service
+        with:
+          service: api
+          version: '3.12'
+          install: false

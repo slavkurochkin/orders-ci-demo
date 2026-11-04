@@ -10,6 +10,10 @@ inputs:
   version:
     description: Runtime version. Python for api, Node for worker.
     required: true
+  install:
+    description: Set to false to skip installing dependencies.
+    required: false
+    default: 'true'
 
 runs:
   using: composite
@@ -28,6 +32,9 @@ runs:
 
     # Uniform, because every service exposes the same `install` target.
     - name: Install dependencies
+      if: inputs.install
       shell: bash
       working-directory: app/${{ inputs.service }}
-      run: make install
+      run: |
+        echo "INSTALLING -- the install input was '${{ inputs.install }}'"
+        make install
