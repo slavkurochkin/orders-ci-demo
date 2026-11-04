@@ -64,7 +64,17 @@ jobs:
 
       - name: Run tests
         working-directory: app/api
-        run: uv run pytest
+        run: uv run pytest --cov=api --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
+
+      # One artifact per leg: the matrix value is in the name.
+      - name: Upload coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-api-py${{ matrix.python-version }}
+          path: |
+            app/api/coverage.xml
+            app/api/htmlcov/
+          retention-days: 7
 
   worker:
     name: worker
