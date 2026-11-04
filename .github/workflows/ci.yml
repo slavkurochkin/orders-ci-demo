@@ -4,8 +4,15 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, "probe-conc-*"]
   workflow_dispatch:
+
+# One in-flight run per branch; a newer run cancels the older one.
+# PROBE: refs/heads/probe-conc-main stands in for main here -- each of its runs
+# gets its own group (keyed by run_id), so nothing can supersede it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/probe-conc-main' && github.run_id || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   changes:
