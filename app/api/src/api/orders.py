@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 BULK_THRESHOLD = 10
 BULK_DISCOUNT = 0.10
-FREE_SHIPPING_OVER = 50.0
+FREE_SHIPPING_OVER = 40.0
 SHIPPING_FLAT = 4.99
 
 
