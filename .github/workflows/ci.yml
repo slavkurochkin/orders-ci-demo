@@ -8,8 +8,30 @@ on:
   workflow_dispatch:
 
 jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      worker: ${{ steps.filter.outputs.worker }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'app/api/**'
+              - '.github/workflows/ci.yml'
+            worker:
+              - 'app/worker/**'
+              - '.github/workflows/ci.yml'
+
   api:
     name: api
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -36,6 +58,8 @@ jobs:
 
   worker:
     name: worker
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.worker == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
