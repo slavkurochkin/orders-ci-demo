@@ -1,0 +1,31 @@
+# Probe for the CI/CD trust episode: an environment with a required reviewer,
+# and what that does to the OIDC subject. Prints claims only, never a token.
+name: trust-env
+
+on:
+  push:
+    branches: [probe-trust-env]
+
+jobs:
+  deploy:
+    name: deploy (environment production)
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Ask GitHub for an OIDC token and print its claims
+        run: |
+          set -euo pipefail
+          jwt=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "::add-mask::$jwt"
+          payload=$(printf '%s' "$jwt" | cut -d. -f2 | tr '_-' '/+')
+          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="$payload="; done
+          claims=$(printf '%s' "$payload" | base64 -d)
+          unset jwt payload
+          echo "--- claims (payload only) ---"
+          echo "$claims" | jq .
+          echo "--- lifetime ---"
+          echo "$claims" | jq -r '"exp - iat = \(.exp - .iat) seconds"'
