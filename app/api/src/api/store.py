@@ -90,7 +90,7 @@ class OrderStore:
         ).wait_until_exists()
 
     def put_order(self, order_id: str, breakdown: dict[str, float]) -> None:
-        self.table.put_item(Item=_to_dynamo({"order_id": order_id, **breakdown}))
+        self.table.put_item(Item={"order_id": order_id, **breakdown})
 
     def get_order(self, order_id: str) -> dict[str, Any] | None:
         item = self.table.get_item(Key={"order_id": order_id}).get("Item")
