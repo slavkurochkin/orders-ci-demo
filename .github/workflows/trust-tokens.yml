@@ -1,0 +1,95 @@
+# Probe for the CI/CD trust episode: what GITHUB_TOKEN may do, and what an
+# OIDC token says. Never prints a token: only HTTP status/messages and the
+# decoded JWT payload (claims).
+name: trust-tokens
+
+on:
+  push:
+    branches: [probe-trust-tokens]
+
+jobs:
+  write-default:
+    name: write (no permissions block)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Try to create a ref with GITHUB_TOKEN
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api -X POST repos/${{ github.repository }}/git/refs \
+            -f ref=refs/heads/probe-trust-write-test-default -f sha="$SHA" \
+            && { echo "RESULT: created"; gh api -X DELETE repos/${{ github.repository }}/git/refs/heads/probe-trust-write-test-default && echo "RESULT: deleted again"; } \
+            || echo "RESULT: refused"
+
+  write-contents-read:
+    name: write (contents read)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Try to create a ref with GITHUB_TOKEN
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api -X POST repos/${{ github.repository }}/git/refs \
+            -f ref=refs/heads/probe-trust-write-test-read -f sha="$SHA" \
+            && { echo "RESULT: created"; gh api -X DELETE repos/${{ github.repository }}/git/refs/heads/probe-trust-write-test-read && echo "RESULT: deleted again"; } \
+            || echo "RESULT: refused"
+
+  write-contents-write:
+    name: write (contents write)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Try to create a ref with GITHUB_TOKEN
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api -X POST repos/${{ github.repository }}/git/refs \
+            -f ref=refs/heads/probe-trust-write-test -f sha="$SHA" --jq '"created " + .ref' \
+            && { echo "RESULT: created"; gh api -X DELETE repos/${{ github.repository }}/git/refs/heads/probe-trust-write-test && echo "RESULT: deleted again"; } \
+            || echo "RESULT: refused"
+
+  oidc-with-permission:
+    name: oidc (id-token write)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Ask GitHub for an OIDC token and print its claims
+        run: |
+          set -euo pipefail
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL set: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
+          jwt=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "::add-mask::$jwt"
+          payload=$(printf '%s' "$jwt" | cut -d. -f2 | tr '_-' '/+')
+          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="$payload="; done
+          claims=$(printf '%s' "$payload" | base64 -d)
+          unset jwt payload
+          echo "--- claims (payload only) ---"
+          echo "$claims" | jq .
+          echo "--- lifetime ---"
+          echo "$claims" | jq -r '"exp - iat = \(.exp - .iat) seconds"'
+
+  oidc-without-permission:
+    name: oidc (no id-token)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Is the token endpoint even there?
+        run: |
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL set: ${ACTIONS_ID_TOKEN_REQUEST_URL:-<not set>}"
+      - name: Ask for a token the way actions do (core.getIDToken)
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const t = await core.getIDToken('sts.amazonaws.com')
+            core.setSecret(t)
+            core.info('got a token (not printed)')
