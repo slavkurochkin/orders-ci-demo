@@ -103,6 +103,11 @@ jobs:
         working-directory: app/worker
         run: npm test
 
+      # PROBE: stands in for a slow suite, so a cancel lands mid-step.
+      - name: Slow integration tests (simulated)
+        run: |
+          for i in $(seq 1 12); do echo "integration batch $i/12"; sleep 10; done
+
   ci-passed:
     name: ci-passed
     needs: [changes, api, worker]
