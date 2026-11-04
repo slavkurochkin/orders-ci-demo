@@ -66,6 +66,15 @@ jobs:
         working-directory: app/api
         run: uv run pytest --cov=api --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
 
+      # PROBE: stagger the legs, so each upload starts after the previous one
+      # has finished (rules out two uploads racing past the name check).
+      - name: Wait for the earlier legs (probe)
+        run: |
+          case "${{ matrix.python-version }}" in
+            3.11) delay=0 ;; 3.12) delay=30 ;; 3.13) delay=60 ;;
+          esac
+          echo "sleeping ${delay}s"; sleep "$delay"
+
       # PROBE: the same artifact name from every matrix leg.
       - name: Upload coverage
         uses: actions/upload-artifact@v7
