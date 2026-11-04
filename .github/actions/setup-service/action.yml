@@ -28,6 +28,5 @@ runs:
 
     # Uniform, because every service exposes the same `install` target.
     - name: Install dependencies
-      shell: bash
       working-directory: app/${{ inputs.service }}
       run: make install
