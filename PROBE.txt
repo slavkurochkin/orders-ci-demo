@@ -1,1 +1,1 @@
-probe push 2
+slow probe push 2
