@@ -36,11 +36,11 @@ def test_discount_is_per_line_not_per_order():
 
 
 def test_shipping_charged_under_threshold():
-    assert shipping(50.0) == 4.99
+    assert shipping(40.0) == 4.99
 
 
 def test_shipping_waived_over_threshold():
-    assert shipping(50.01) == 0.0
+    assert shipping(40.01) == 0.0
 
 
 def test_total_combines_discount_and_shipping():
