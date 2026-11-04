@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, 'probe-reuse-**']
   workflow_dispatch:
 
 jobs:
@@ -21,80 +21,33 @@ jobs:
         id: filter
         with:
           filters: |
+            shared: &shared
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/reusable-service-ci.yml'
+              - '.github/actions/setup-service/**'
             api:
+              - *shared
               - 'app/api/**'
-              - '.github/workflows/ci.yml'
             worker:
+              - *shared
               - 'app/worker/**'
-              - '.github/workflows/ci.yml'
 
+  # A job that calls a reusable workflow has no runs-on and no steps.
   api:
-    name: api (${{ matrix.python-version }})
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.api == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v7
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.2
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Show the Python version
-        working-directory: app/api
-        run: uv run python --version
-
-      - name: Install dependencies
-        working-directory: app/api
-        run: uv sync --extra dev
-
-      - name: Lint and format check
-        working-directory: app/api
-        run: |
-          uv run ruff check .
-          uv run ruff format --check .
-
-      - name: Run tests
-        working-directory: app/api
-        run: uv run pytest
+    uses: ./.github/workflows/reusable-service-ci.yml
+    with:
+      service: api
+      versions: '["3.11", "3.12", "3.13"]'
 
   worker:
-    name: worker
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.worker == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v7
-
-      - name: Set up Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-
-      - name: Install dependencies
-        working-directory: app/worker
-        run: npm ci
-
-      - name: Lint and format check
-        working-directory: app/worker
-        run: |
-          npm run lint
-          npm run format:check
-
-      - name: Run tests
-        working-directory: app/worker
-        run: npm test
+    uses: ./.github/workflows/reusable-service-ci.yml
+    with:
+      service: worker
+      versions: '["22"]'
 
   ci-passed:
     name: ci-passed
@@ -108,8 +61,9 @@ jobs:
           CHANGES: ${{ needs.changes.result }}
           API: ${{ needs.api.result }}
           WORKER: ${{ needs.worker.result }}
+          API_VERSIONS: ${{ needs.api.outputs.tested-versions }}
         run: |
-          echo "changes=$CHANGES api=$API worker=$WORKER"
+          echo "changes=$CHANGES api=$API worker=$WORKER api-versions=$API_VERSIONS"
           if [ "$CHANGES" != success ]; then
             echo "::error::change detection did not succeed, so nothing was tested"
             exit 1

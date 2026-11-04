@@ -1,0 +1,33 @@
+# Composite action: toolchain and dependency install for one service.
+# It replaces *steps*: no jobs, no runs-on, and every run: step needs shell:.
+name: Set up service
+description: Install the toolchain and dependencies for one service in this repository.
+
+inputs:
+  service:
+    description: Which service to set up -- api or worker.
+    required: true
+  version:
+    description: Runtime version. Python for api, Node for worker.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      if: inputs.service == 'api'
+      uses: astral-sh/setup-uv@v10.3.2
+      with:
+        python-version: ${{ inputs.version }}
+
+    - name: Set up Node
+      if: inputs.service == 'worker'
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ inputs.version }}
+
+    # Uniform, because every service exposes the same `install` target.
+    - name: Install dependencies
+      shell: bash
+      working-directory: app/${{ inputs.service }}
+      run: make install

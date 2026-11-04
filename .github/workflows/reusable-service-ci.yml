@@ -1,0 +1,51 @@
+# Reusable workflow: the build contract for any service in this repository.
+# It knows nothing about Python or Node: every service exposes the same
+# Makefile targets, so this calls `make lint` and `make test`.
+name: Reusable service CI
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Which service to build. Must match a directory under app/.
+        required: true
+        type: string
+      versions:
+        description: JSON array of runtime versions to test against.
+        required: true
+        type: string
+    outputs:
+      tested-versions:
+        description: The versions this service was tested on.
+        value: ${{ jobs.test.outputs.tested-versions }}
+
+jobs:
+  test:
+    name: ${{ inputs.service }} (${{ matrix.version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJSON(inputs.versions) }}
+    # Does not depend on the matrix, so every leg writes the same value.
+    outputs:
+      tested-versions: ${{ inputs.versions }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up ${{ inputs.service }}
+        uses: ./.github/actions/setup-service
+        with:
+          service: ${{ inputs.service }}
+          version: ${{ matrix.version }}
+
+      - name: Lint and format check
+        working-directory: app/${{ inputs.service }}
+        run: make lint
+
+      - name: Run tests
+        working-directory: app/${{ inputs.service }}
+        run: make test
