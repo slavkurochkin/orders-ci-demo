@@ -93,5 +93,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Report the results
-        run: echo "changes=${{ needs.changes.result }} api=${{ needs.api.result }} worker=${{ needs.worker.result }}"
+      - name: Check every job's result
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          API: ${{ needs.api.result }}
+          WORKER: ${{ needs.worker.result }}
+        run: |
+          echo "changes=$CHANGES api=$API worker=$WORKER"
+          if [ "$CHANGES" != success ]; then
+            echo "::error::change detection did not succeed, so nothing was tested"
+            exit 1
+          fi
+          for result in "$API" "$WORKER"; do
+            case "$result" in
+              success|skipped) ;;
+              *) echo "::error::a service job ended in: $result"; exit 1 ;;
+            esac
+          done
